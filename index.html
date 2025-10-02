@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>音频一键全损 V2.0</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+  <style>
+    :root{--bg:#f2f4f8;--card:#ffffffcc;--text:#333;--accent:#0077ff;--glass:blur(12px);}
+    @media(prefers-color-scheme:dark){
+      :root{--bg:#121212;--card:#1e1e1ecc;--text:#eaeaea;--accent:#0a84ff;}
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;}
+    .card{width:100%;max-width:500px;background:var(--card);backdrop-filter:var(--glass);border-radius:24px;padding:28px;box-shadow:0 8px 32px rgba(0,0,0,.1);transform:translateY(20px);opacity:0;animation:cardSlideIn 0.6s ease-out forwards;}
+    @keyframes cardSlideIn{to{transform:translateY(0);opacity:1;}}
+    h2{margin:0 0 20px;font-size:22px;text-align:center;animation:fadeIn 0.8s ease-out 0.2s both;}
+    @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+    .row{display:flex;align-items:center;gap:10px;margin-bottom:16px;animation:slideUp 0.6s ease-out 0.3s both;}
+    @keyframes slideUp{from{transform:translateY(10px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+    label{font-size:14px;white-space:nowrap;}
+    select{flex:1;padding:8px 12px;border-radius:10px;border:1px solid #ccc;background:#fff;color:#000;font-size:14px;transition:all 0.3s ease;}
+    select:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,119,255,0.1);}
+    @media(prefers-color-scheme:dark){select{background:#2a2a2a;color:#fff;border-color:#444;}}
+    button{width:100%;padding:12px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:all 0.3s ease;animation:slideUp 0.6s ease-out 0.4s both;}
+    button:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.15);}
+    button:disabled{opacity:.5;cursor:not-allowed;transform:none !important;box-shadow:none !important;}
+    .primary{background:var(--accent);color:#fff;}
+    .primary:active{transform:scale(.97) !important;}
+    .secondary{background:#e0e0e0;color:#000;}
+    @media(prefers-color-scheme:dark){.secondary{background:#3a3a3a;color:#fff;}}
+    .progress-box{margin-top:20px;animation:slideUp 0.6s ease-out 0.5s both;}
+    .progress{width:100%;height:8px;border-radius:4px;overflow:hidden;background:#e0e0e0;}
+    @media(prefers-color-scheme:dark){.progress{background:#3a3a3a;}}
+    .progress-bar{height:100%;width:0%;background:var(--accent);transition:width .3s ease;}
+    .status{font-size:13px;margin-top:8px;text-align:center;}
+    audio{width:100%;margin-top:20px;border-radius:8px;animation:slideUp 0.6s ease-out 0.6s both;}
+    /* 文件列表 */
+    #fileList{max-height:150px;overflow-y:auto;font-size:13px;margin-bottom:12px;border:1px solid #ddd;border-radius:8px;padding:8px;animation:slideUp 0.6s ease-out 0.4s both;}
+    @media(prefers-color-scheme:dark){#fileList{border-color:#444;}}
+    .file-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #eee;transition:all 0.3s ease;}
+    @media(prefers-color-scheme:dark){.file-item{border-bottom-color:#333;}}
+    .file-actions{display:flex;gap:8px;}
+    .file-action-btn{background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;padding:4px 8px;border-radius:6px;transition:all 0.3s ease;}
+    .file-action-btn:hover{background:var(--accent);color:#fff;transform:translateY(-1px);}
+    .file-item:last-child{border-bottom:none;}
+    /* 弹窗 */
+    .modal{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,.5);backdrop-filter:blur(5px);animation:fadeIn 0.3s ease;}
+    .modal-content{background:var(--card);margin:15% auto;padding:24px;border-radius:20px;width:90%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:modalSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);}
+    @keyframes modalSlideIn{from{opacity:0;transform:translateY(-30px) scale(0.9);}to{opacity:1;transform:translateY(0) scale(1);}}
+    .modal-header{font-size:18px;font-weight:600;margin-bottom:20px;text-align:center;color:var(--text);}
+    .modal-input{width:100%;padding:14px 16px;border:2px solid #e0e0e0;border-radius:12px;font-size:16px;margin-bottom:24px;background:var(--bg);color:var(--text);transition:all 0.3s ease;}
+    .modal-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,119,255,0.1);}
+    @media(prefers-color-scheme:dark){.modal-input{background:#2a2a2a;border-color:#444;}}
+    .modal-buttons{display:flex;gap:12px;}
+    .modal-buttons button{flex:1;padding:12px;border-radius:10px;font-weight:600;transition:all 0.3s ease;}
+    .modal-buttons button:hover{transform:translateY(-2px);}
+    .modal-cancel{background:#e0e0e0;color:#000;}
+    @media(prefers-color-scheme:dark){.modal-cancel{background:#3a3a3a;color:#fff;}}
+    .upload-options{display:flex;gap:10px;margin-bottom:16px;animation:slideUp 0.6s ease-out 0.3s both;}
+    .upload-options button{flex:1;}
+    /* 下载确认弹窗 */
+    .download-modal .modal-content{max-width:350px;}
+    .download-preview{background:#f8f9fa;border-radius:12px;padding:16px;margin-bottom:20px;text-align:center;border:2px dashed #e0e0e0;}
+    @media(prefers-color-scheme:dark){.download-preview{background:#2a2a2a;border-color:#444;}}
+    .download-info{font-size:14px;color:#666;margin-bottom:8px;}
+    @media(prefers-color-scheme:dark){.download-info{color:#aaa;}}
+    .download-filename{font-weight:600;color:var(--accent);font-size:16px;word-break:break-all;}
+    /* 高级设置弹窗 */
+    .advanced-modal .modal-content{max-width:420px;}
+    .advanced-row{display:flex;align-items:center;gap:10px;margin-bottom:16px;animation:slideUp 0.4s ease-out;}
+    .advanced-row label{flex:1;font-size:14px;font-weight:500;}
+    .advanced-row span{min-width:40px;text-align:center;font-size:14px;font-weight:600;color:var(--accent);}
+    .freq-slider{flex:2;}
+    .file-advanced-btn{background:var(--accent);color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;cursor:pointer;transition:all 0.3s ease;}
+    .file-advanced-btn:hover{transform:translateY(-1px);opacity:0.9;}
+    .delete-btn{background:#ff4757;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;cursor:pointer;transition:all 0.3s ease;}
+    .delete-btn:hover{background:#ff3742;transform:translateY(-1px);}
+    /* 打包下载按钮 */
+    .batch-download{animation:slideUp 0.6s ease-out 0.5s both;}
+    /* 进度动画 */
+    @keyframes pulse{0%{opacity:1;}50%{opacity:0.5;}100%{opacity:1;}}
+    .processing{animation:pulse 1.5s ease-in-out infinite;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>音频一件全损 V2.0</h2>
+
+    <!-- 上传选项 -->
+    <div class="upload-options">
+      <button id="singleUploadBtn" class="primary">上传单个文件</button>
+      <button id="zipUploadBtn" class="secondary">上传压缩包</button>
+    </div>
+
+    <!-- 文件选择 -->
+    <div class="row">
+      <input type="file" id="singleFile" accept="audio/*" style="display:none;">
+      <input type="file" id="zipFile" accept=".zip,.rar,.7z" style="display:none;">
+    </div>
+
+    <div id="fileList"></div>
+
+    <!-- 失真类型 -->
+    <div class="row">
+      <label>失真类型</label>
+      <select id="distortionType">
+        <option value="soft">柔和失真</option>
+        <option value="hard" selected>硬削波</option>
+        <option value="tube">电子管过载</option>
+        <option value="fuzz">法兹失真</option>
+        <option value="bitcrush">比特压缩</option>
+      </select>
+    </div>
+
+    <!-- 失真强度 -->
+    <div class="row">
+      <label>失真强度</label>
+      <input type="range" id="amtRange" min="1" max="100" value="50" step="1">
+      <span id="amtVal">50</span>
+    </div>
+
+    <!-- 输出格式 -->
+    <div class="row">
+      <label>输出格式</label>
+      <select id="fmtSel">
+        <option value="mp3">MP3（体积小，慢）</option>
+        <option value="wav" selected>WAV（快，体积大）</option>
+      </select>
+    </div>
+
+    <button id="advancedBtn" class="secondary">⚙️ 高级设置</button>
+    <button id="processBtn" class="primary" disabled>开始处理</button>
+    
+    <!-- 打包下载按钮 -->
+    <button id="batchDownloadBtn" class="secondary batch-download" disabled>下载文件</button>
+
+    <div class="progress-box">
+      <div class="progress"><div class="progress-bar" id="progBar"></div></div>
+      <div class="status" id="status">等待选择文件…</div>
+    </div>
+
+    <audio id="player" controls style="display:none;"></audio>
+  </div>
+
+  <!-- 打包下载弹窗 -->
+  <div id="zipDownloadModal" class="modal download-modal">
+    <div class="modal-content">
+      <div class="modal-header">打包下载确认</div>
+      <div class="download-preview">
+        <div class="download-info">将下载包含以下文件的压缩包：</div>
+        <div class="download-filename" id="fileCountDisplay">共 0 个文件</div>
+      </div>
+      <input type="text" id="zipFilenameInput" class="modal-input" placeholder="压缩包名称（无需扩展名）" value="distorted_audio">
+      <div class="modal-buttons">
+        <button id="confirmZipDownload" class="primary">确认下载</button>
+        <button id="cancelZipDownload" class="modal-cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 单个文件下载弹窗 -->
+  <div id="singleDownloadModal" class="modal download-modal">
+    <div class="modal-content">
+      <div class="modal-header">下载确认</div>
+      <div class="download-preview">
+        <div class="download-info">将下载以下文件：</div>
+        <div class="download-filename" id="singleFilenameDisplay">filename</div>
+      </div>
+      <input type="text" id="singleFilenameInput" class="modal-input" placeholder="文件名（无需扩展名）">
+      <div class="modal-buttons">
+        <button id="confirmSingleDownload" class="primary">确认下载</button>
+        <button id="cancelSingleDownload" class="modal-cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 高级设置弹窗 -->
+  <div id="advancedModal" class="modal advanced-modal">
+    <div class="modal-content">
+      <div class="modal-header">高级音频设置</div>
+      <div class="advanced-row">
+        <label>低频增益 (80Hz)</label>
+        <input type="range" class="freq-slider" id="bassRange" min="0" max="200" value="100" step="1">
+        <span id="bassVal">100%</span>
+      </div>
+      <div class="advanced-row">
+        <label>中频增益 (1kHz)</label>
+        <input type="range" class="freq-slider" id="midRange" min="0" max="200" value="100" step="1">
+        <span id="midVal">100%</span>
+      </div>
+      <div class="advanced-row">
+        <label>高频增益 (5kHz)</label>
+        <input type="range" class="freq-slider" id="trebleRange" min="0" max="200" value="100" step="1">
+        <span id="trebleVal">100%</span>
+      </div>
+      <div class="advanced-row">
+        <label>音量调节</label>
+        <input type="range" class="freq-slider" id="volumeRange" min="0" max="200" value="100" step="1">
+        <span id="volumeVal">100%</span>
+      </div>
+      <div class="modal-buttons">
+        <button id="confirmAdvanced" class="primary">确认设置</button>
+        <button id="cancelAdvanced" class="modal-cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 单个文件高级设置弹窗 -->
+  <div id="fileAdvancedModal" class="modal advanced-modal">
+    <div class="modal-content">
+      <div class="modal-header" id="fileAdvancedHeader">文件高级设置</div>
+      <div class="advanced-row">
+        <label>低频增益 (80Hz)</label>
+        <input type="range" class="freq-slider" id="fileBassRange" min="0" max="200" value="100" step="1">
+        <span id="fileBassVal">100%</span>
+      </div>
+      <div class="advanced-row">
+        <label>中频增益 (1000Hz)</label>
+        <input type="range" class="freq-slider" id="fileMidRange" min="0" max="200" value="100" step="1">
+        <span id="fileMidVal">100%</span>
+      </div>
+      <div class="advanced-row">
+        <label>高频增益 (5000Hz)</label>
+        <input type="range" class="freq-slider" id="fileTrebleRange" min="0" max="200" value="100" step="1">
+        <span id="fileTrebleVal">100%</span>
+      </div>
+      <div class="advanced-row">
+        <label>音量调节</label>
+        <input type="range" class="freq-slider" id="fileVolumeRange" min="0" max="200" value="100" step="1">
+        <span id="fileVolumeVal">100%</span>
+      </div>
+      <div class="modal-buttons">
+        <button id="confirmFileAdvanced" class="primary">确认设置</button>
+        <button id="cancelFileAdvanced" class="modal-cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 依赖 -->
+  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script>
+    /* ======== 工具 ======== */
+    const singleFile=document.getElementById('singleFile'),zipFile=document.getElementById('zipFile'),
+          fmtSel=document.getElementById('fmtSel'),processBtn=document.getElementById('processBtn'),
+          status=document.getElementById('status'),progBar=document.getElementById('progBar'),
+          player=document.getElementById('player'),fileList=document.getElementById('fileList'),
+          distortionType=document.getElementById('distortionType'),
+          singleUploadBtn=document.getElementById('singleUploadBtn'),zipUploadBtn=document.getElementById('zipUploadBtn'),
+          advancedBtn=document.getElementById('advancedBtn'),batchDownloadBtn=document.getElementById('batchDownloadBtn');
+    
+    let fileArr=[],resultBlobs=[],outExt='wav',isZipUpload=false;
+    let currentFileIndex = -1;
+
+    // 全局高级设置参数
+    let globalAdvancedParams = {
+      bass: 1.0,
+      mid: 1.0,
+      treble: 1.0,
+      volume: 1.0
+    };
+
+    // 文件独立高级设置参数
+    let fileAdvancedParams = {};
+
+    function setStat(txt,percent=0){
+      status.textContent=txt;
+      progBar.style.width=percent+'%';
+      if(percent > 0 && percent < 100){
+        status.classList.add('processing');
+      }else{
+        status.classList.remove('processing');
+      }
+    }
+    
+    /* 播放音频 */
+    function playAudio(blob) {
+      const url = URL.createObjectURL(blob);
+      player.src = url;
+      player.style.display = 'block';
+      player.play();
+    }
+
+    /* 显示单个文件下载确认弹窗 */
+    function showSingleDownloadModal(blob, originalName, index) {
+      const defaultName = originalName.replace(/\.[^.]+$/, `_distorted`);
+      document.getElementById('singleFilenameInput').value = defaultName;
+      document.getElementById('singleFilenameDisplay').textContent = defaultName + '.' + outExt;
+      
+      const modal = document.getElementById('singleDownloadModal');
+      modal.style.display = 'block';
+      
+      // 设置确认下载事件
+      document.getElementById('confirmSingleDownload').onclick = () => {
+        const customName = document.getElementById('singleFilenameInput').value.trim() || defaultName;
+        const finalName = customName + '.' + outExt;
+        downloadAudio(blob, finalName);
+        modal.style.display = 'none';
+      };
+    }
+
+    /* 下载音频 */
+    function downloadAudio(blob, filename) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+    }
+
+    /* WAV 编码 */
+    function bufToWav(buf){
+      const len=buf.length,nCh=buf.numberOfChannels,rate=buf.sampleRate;
+      const arr=new ArrayBuffer(44+len*nCh*2),view=new DataView(arr);let p=0;
+      const u32=d=>{view.setUint32(p,d,true);p+=4;},u16=d=>{view.setUint16(p,d,true);p+=2;},i16=d=>{view.setInt16(p,d,true);p+=2;};
+      u32(0x46464952);u32(36+len*nCh*2);u32(0x45564157);u32(0x20746d66);u32(16);u16(1);u16(nCh);u32(rate);u32(rate*nCh*2);u16(nCh*2);u16(16);
+      u32(0x61746164);u32(len*nCh*2);
+      for(let i=0;i<len;i++)for(let c=0;c<nCh;c++){let s=Math.max(-1,Math.min(1,buf.getChannelData(c)[i]));i16(s<0?s*0x8000:s*0x7FFF);}
+      return new Blob([arr],{type:'audio/wav'});
+    }
+    /* MP3 编码 */
+    function bufToMp3(buf,onProgress){
+      return new Promise(res=>{
+        const nCh=buf.numberOfChannels,rate=buf.sampleRate,len=buf.length;
+        const enc=new lamejs.Mp3Encoder(nCh,rate,128),block=1152,total=Math.ceil(len/block);
+        let idx=0,blocks=[],left=new Int16Array(len),right=nCh>1?new Int16Array(len):null;
+        for(let i=0;i<len;i++){left[i]=buf.getChannelData(0)[i]*0x7FFF;if(right)right[i]=buf.getChannelData(1)[i]*0x7FFF;}
+        !function next(){
+          if(idx>=total){
+            const tail=enc.flush();if(tail.length)blocks.push(tail);
+            const totalLen=blocks.reduce((a,b)=>a+b.length,0);
+            const result=new Uint8Array(totalLen);let pos=0;
+            blocks.forEach(b=>{result.set(b,pos);pos+=b.length;});
+            res(new Blob([result],{type:'audio/mp3'}));return;
+          }
+          const s=idx*block,e=Math.min(s+block,len);
+          const chk=right?enc.encodeBuffer(left.subarray(s,e),right.subarray(s,e)):enc.encodeBuffer(left.subarray(s,e));
+          if(chk.length)blocks.push(chk);
+          idx++;onProgress(idx/total*100);setTimeout(next,0);
+        }();
+      });
+    }
+
+    /* 创建均衡器节点 */
+    function createEQ(audioContext, bass, mid, treble) {
+      // 低频 (80Hz)
+      const lowFilter = audioContext.createBiquadFilter();
+      lowFilter.type = "lowshelf";
+      lowFilter.frequency.value = 80;
+      lowFilter.gain.value = (bass - 1.0) * 12;
+      
+      // 中频 (1000Hz)
+      const midFilter = audioContext.createBiquadFilter();
+      midFilter.type = "peaking";
+      midFilter.frequency.value = 1000;
+      midFilter.Q.value = 1;
+      midFilter.gain.value = (mid - 1.0) * 12;
+      
+      // 高频 (5000Hz)
+      const highFilter = audioContext.createBiquadFilter();
+      highFilter.type = "highshelf";
+      highFilter.frequency.value = 5000;
+      highFilter.gain.value = (treble - 1.0) * 12;
+      
+      // 连接滤波器
+      lowFilter.connect(midFilter);
+      midFilter.connect(highFilter);
+      
+      return {
+        input: lowFilter,
+        output: highFilter
+      };
+    }
+
+    /* 失真曲线生成函数 */
+    function generateDistortionCurve(samples, amount, type) {
+      const curve = new Float32Array(samples);
+      const halfSamples = samples / 2;
+      
+      for (let i = 0; i < samples; i++) {
+        const x = (i - halfSamples) / halfSamples;
+        let y;
+        
+        switch (type) {
+          case 'soft':
+            y = Math.tanh(x * amount / 20);
+            break;
+          case 'hard':
+            y = Math.max(-1, Math.min(1, x * amount / 10));
+            break;
+          case 'tube':
+            y = x * (1 + amount / 100) - (x * x * x) * (amount / 300);
+            y = Math.max(-1, Math.min(1, y));
+            break;
+          case 'fuzz':
+            y = Math.sign(x) * (1 - Math.exp(-Math.abs(x) * amount / 5));
+            break;
+          case 'bitcrush':
+            const levels = Math.max(2, Math.floor(100 / amount));
+            y = Math.round(x * levels) / levels;
+            break;
+          default:
+            y = Math.tanh(x * amount / 20);
+        }
+        
+        curve[i] = y;
+      }
+      return curve;
+    }
+
+    /* 失真强度滑块 */
+    const amtRange=document.getElementById('amtRange'),amtVal=document.getElementById('amtVal');
+    function updateAmt(){const v=amtRange.value;amtVal.textContent=v;window.amt=Number(v);}
+    amtRange.oninput=updateAmt;updateAmt();
+
+    /* 全局高级设置滑块 */
+    const bassRange=document.getElementById('bassRange'),bassVal=document.getElementById('bassVal');
+    const midRange=document.getElementById('midRange'),midVal=document.getElementById('midVal');
+    const trebleRange=document.getElementById('trebleRange'),trebleVal=document.getElementById('trebleVal');
+    const volumeRange=document.getElementById('volumeRange'),volumeVal=document.getElementById('volumeVal');
+
+    function updateGlobalAdvancedParams(){
+      globalAdvancedParams.bass = bassRange.value / 100;
+      globalAdvancedParams.mid = midRange.value / 100;
+      globalAdvancedParams.treble = trebleRange.value / 100;
+      globalAdvancedParams.volume = volumeRange.value / 100;
+      
+      bassVal.textContent = bassRange.value + '%';
+      midVal.textContent = midRange.value + '%';
+      trebleVal.textContent = trebleRange.value + '%';
+      volumeVal.textContent = volumeRange.value + '%';
+    }
+
+    bassRange.oninput = midRange.oninput = trebleRange.oninput = volumeRange.oninput = updateGlobalAdvancedParams;
+    updateGlobalAdvancedParams();
+
+    /* 文件高级设置滑块 */
+    const fileBassRange=document.getElementById('fileBassRange'),fileBassVal=document.getElementById('fileBassVal');
+    const fileMidRange=document.getElementById('fileMidRange'),fileMidVal=document.getElementById('fileMidVal');
+    const fileTrebleRange=document.getElementById('fileTrebleRange'),fileTrebleVal=document.getElementById('fileTrebleVal');
+    const fileVolumeRange=document.getElementById('fileVolumeRange'),fileVolumeVal=document.getElementById('fileVolumeVal');
+
+    function updateFileAdvancedParams(){
+      if(currentFileIndex === -1) return;
+      
+      const params = fileAdvancedParams[currentFileIndex] || {...globalAdvancedParams};
+      params.bass = fileBassRange.value / 100;
+      params.mid = fileMidRange.value / 100;
+      params.treble = fileTrebleRange.value / 100;
+      params.volume = fileVolumeRange.value / 100;
+      
+      fileAdvancedParams[currentFileIndex] = params;
+      
+      fileBassVal.textContent = fileBassRange.value + '%';
+      fileMidVal.textContent = fileMidRange.value + '%';
+      fileTrebleVal.textContent = fileTrebleRange.value + '%';
+      fileVolumeVal.textContent = fileVolumeRange.value + '%';
+    }
+
+    fileBassRange.oninput = fileMidRange.oninput = fileTrebleRange.oninput = fileVolumeRange.oninput = updateFileAdvancedParams;
+
+    /* 高级设置弹窗 */
+    advancedBtn.onclick = () => {
+      document.getElementById('advancedModal').style.display = 'block';
+    };
+
+    document.getElementById('cancelAdvanced').onclick = () => {
+      document.getElementById('advancedModal').style.display = 'none';
+    };
+
+    document.getElementById('confirmAdvanced').onclick = () => {
+      updateGlobalAdvancedParams();
+      document.getElementById('advancedModal').style.display = 'none';
+    };
+
+    /* 文件高级设置弹窗 */
+    function showFileAdvancedModal(index) {
+      currentFileIndex = index;
+      const fileName = fileArr[index].name;
+      document.getElementById('fileAdvancedHeader').textContent = `高级设置 - ${fileName}`;
+      
+      const params = fileAdvancedParams[index] || {...globalAdvancedParams};
+      
+      fileBassRange.value = params.bass * 100;
+      fileMidRange.value = params.mid * 100;
+      fileTrebleRange.value = params.treble * 100;
+      fileVolumeRange.value = params.volume * 100;
+      
+      updateFileAdvancedParams();
+      
+      document.getElementById('fileAdvancedModal').style.display = 'block';
+    }
+
+    document.getElementById('cancelFileAdvanced').onclick = () => {
+      document.getElementById('fileAdvancedModal').style.display = 'none';
+    };
+
+    document.getElementById('confirmFileAdvanced').onclick = () => {
+      updateFileAdvancedParams();
+      document.getElementById('fileAdvancedModal').style.display = 'none';
+    };
+
+    /* 删除文件 */
+    function deleteFile(index) {
+      fileArr.splice(index, 1);
+      delete fileAdvancedParams[index];
+      // 重新索引高级设置
+      const newAdvancedParams = {};
+      Object.keys(fileAdvancedParams).forEach(oldIndex => {
+        if(oldIndex > index) {
+          newAdvancedParams[oldIndex - 1] = fileAdvancedParams[oldIndex];
+        } else if(oldIndex < index) {
+          newAdvancedParams[oldIndex] = fileAdvancedParams[oldIndex];
+        }
+      });
+      fileAdvancedParams = newAdvancedParams;
+      updateFileList();
+      if(fileArr.length === 0) {
+        processBtn.disabled = true;
+        batchDownloadBtn.disabled = true;
+        setStat('等待选择文件…');
+      }
+    }
+
+    /* 上传按钮事件 */
+    singleUploadBtn.onclick=()=>singleFile.click();
+    zipUploadBtn.onclick=()=>zipFile.click();
+
+    /* 单个文件选择 */
+    singleFile.onchange=async(e)=>{
+      if(e.target.files.length>0){
+        isZipUpload = false;
+        fileArr = Array.from(e.target.files);
+        fileAdvancedParams = {};
+        updateFileList();
+        setStat(`已选择 ${fileArr.length} 个音频文件`);
+        processBtn.disabled = false;
+        batchDownloadBtn.disabled = false;
+      }
+    };
+
+    /* 压缩包文件选择 */
+    zipFile.onchange=async(e)=>{
+      if(e.target.files.length>0){
+        isZipUpload = true;
+        const zipFile = e.target.files[0];
+        setStat('正在解压压缩包…', 10);
+        
+        try {
+          const zip = new JSZip();
+          const contents = await zip.loadAsync(zipFile);
+          fileArr = [];
+          fileAdvancedParams = {};
+          
+          // 读取压缩包中的音频文件
+          let fileCount = 0;
+          const totalFiles = Object.keys(contents.files).length;
+          
+          for (const [filename, file] of Object.entries(contents.files)) {
+            if (!file.dir && filename.match(/\.(mp3|wav|ogg|m4a|flac)$/i)) {
+              const blob = await file.async('blob');
+              fileArr.push(new File([blob], filename, { type: 'audio/*' }));
+              fileCount++;
+              setStat(`解压中 ${fileCount} 个文件`, 10 + (fileCount / totalFiles) * 80);
+            }
+          }
+          
+          if (fileArr.length === 0) {
+            setStat('压缩包中没有找到音频文件');
+            processBtn.disabled = true;
+            batchDownloadBtn.disabled = true;
+            return;
+          }
+          
+          updateFileList();
+          setStat(`从压缩包中提取了 ${fileArr.length} 个音频文件`, 100);
+          processBtn.disabled = false;
+          batchDownloadBtn.disabled = false;
+        } catch (error) {
+          setStat('解压失败：' + error.message);
+          processBtn.disabled = true;
+          batchDownloadBtn.disabled = true;
+        }
+      }
+    };
+
+    /* 更新文件列表显示 */
+    function updateFileList() {
+      fileList.innerHTML = fileArr.map((f,i)=>`
+        <div class="file-item">
+          <span>${i+1}. ${f.name}</span>
+          <div class="file-actions">
+            <button class="file-advanced-btn" onclick="showFileAdvancedModal(${i})">设置</button>
+            <button class="delete-btn" onclick="deleteFile(${i})">删除</button>
+            <span id="st${i}">等待</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    /* ======== 处理音频 ======== */
+    processBtn.onclick=async()=>{
+      if(fileArr.length===0) return;
+      
+      processBtn.disabled=true;
+      batchDownloadBtn.disabled=true;
+      resultBlobs=[];
+      outExt=fmtSel.value;
+      
+      for(let i=0;i<fileArr.length;i++){
+        document.getElementById(`st${i}`).textContent='解码中…';
+        setStat(`处理文件 ${i+1}/${fileArr.length}: 解码中…`, (i/fileArr.length)*100);
+        
+        const buf=await fileArr[i].arrayBuffer();
+        const tmp=new AudioContext();
+        const originalBuf=await tmp.decodeAudioData(buf);
+        tmp.close();
+        
+        document.getElementById(`st${i}`).textContent='渲染中…';
+        setStat(`处理文件 ${i+1}/${fileArr.length}: 渲染中…`, (i/fileArr.length)*100 + 20);
+        
+        const off=new OfflineAudioContext(originalBuf.numberOfChannels,originalBuf.length,originalBuf.sampleRate);
+        const src=off.createBufferSource();src.buffer=originalBuf;
+        
+        // 获取该文件的高级设置参数
+        const fileParams = fileAdvancedParams[i] || globalAdvancedParams;
+        
+        // 创建失真效果器
+        const shaper=off.createWaveShaper();
+        const samples=4096,amt=window.amt||50;
+        const selectedType = distortionType.value;
+        const curve = generateDistortionCurve(samples, amt, selectedType);
+        shaper.curve=curve;shaper.oversample='4x';
+        
+        // 创建均衡器
+        const eq = createEQ(off, fileParams.bass, fileParams.mid, fileParams.treble);
+        
+        // 创建增益节点（音量控制）
+        const gainNode = off.createGain();
+        gainNode.gain.value = fileParams.volume;
+        
+        // 连接节点：源 -> EQ -> 失真 -> 音量 -> 输出
+        src.connect(eq.input);
+        eq.output.connect(shaper);
+        shaper.connect(gainNode);
+        gainNode.connect(off.destination);
+        
+        src.start(0);
+        const rendered=await off.startRendering();
+        
+        let blob;
+        if(outExt==='wav'){
+          blob=bufToWav(rendered);
+        }else if(outExt==='mp3'){
+          await bufToMp3(rendered,p=>{
+            document.getElementById(`st${i}`).textContent=`编码MP3 ${Math.round(p)}%`;
+            setStat(`处理文件 ${i+1}/${fileArr.length}: 编码MP3 ${Math.round(p)}%`, (i/fileArr.length)*100 + 20 + p*0.6);
+          });
+        }
+        
+        const resultItem = {
+          name: fileArr[i].name.replace(/\.[^.]+$/, `_distorted.${outExt}`),
+          blob: blob,
+          originalName: fileArr[i].name
+        };
+        resultBlobs.push(resultItem);
+        
+        // 更新文件列表显示操作按钮
+        const statusElement = document.getElementById(`st${i}`);
+        statusElement.innerHTML = `
+          <div class="file-actions">
+            <button class="file-action-btn" onclick="playAudio(resultBlobs[${i}].blob)">播放</button>
+            <button class="file-action-btn" onclick="showSingleDownloadModal(resultBlobs[${i}].blob, resultBlobs[${i}].originalName, ${i})">下载</button>
+          </div>
+        `;
+        
+        setStat(`进度 ${i+1}/${fileArr.length}`,((i+1)/fileArr.length)*100);
+      }
+      
+      processBtn.disabled=false;
+      batchDownloadBtn.disabled=false;
+      setStat('全部处理完成！', 100);
+    };
+
+    /* ======== 打包下载 ======== */
+    batchDownloadBtn.onclick = () => {
+      if(resultBlobs.length === 0) return;
+      showZipDownloadModal();
+    };
+
+    function showZipDownloadModal() {
+      document.getElementById('fileCountDisplay').textContent = `共 ${resultBlobs.length} 个文件`;
+      document.getElementById('zipFilenameInput').value = 'distorted_audio';
+      
+      const modal = document.getElementById('zipDownloadModal');
+      modal.style.display = 'block';
+    }
+    
+    document.getElementById('cancelZipDownload').onclick=()=>{
+      document.getElementById('zipDownloadModal').style.display='none';
+    };
+    
+    document.getElementById('confirmZipDownload').onclick=async()=>{
+      const zipName=(document.getElementById('zipFilenameInput').value.trim()||'distorted_audio')+'.zip';
+      document.getElementById('zipDownloadModal').style.display='none';
+      
+      setStat('正在创建压缩包…', 0);
+      const zip=new JSZip();
+      resultBlobs.forEach(f=>zip.file(f.name,f.blob));
+      const blob=await zip.generateAsync({type:'blob'},meta=>{
+        setStat(`打包中 ${Math.round(meta.percent)}%`, meta.percent);
+      });
+      
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=zipName;
+      a.click();
+      
+      setStat('下载完成！', 100);
+    };
+    
+    // 关闭弹窗事件
+    window.onclick=e=>{
+      if(e.target.classList.contains('modal')){
+        e.target.style.display='none';
+      }
+    }
+
+    // 取消按钮事件
+    document.getElementById('cancelSingleDownload').onclick = () => {
+      document.getElementById('singleDownloadModal').style.display = 'none';
+    };
+  </script>
+</body>
+</html>
